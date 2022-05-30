@@ -20,7 +20,7 @@ __license__ = "GPLv3"
 #include <stdint.h>
 #include <string.h>
 #include <assert.h>
-
+#include "gw_malloc.h"
 #include "m68k.h"
 
 #include "ym2612.h"
@@ -40,8 +40,8 @@ unsigned int MD_ROM_DATA_LENGTH;
 #endif
 
 // Setup CPU Memory
-unsigned char M68K_RAM[MAX_RAM_SIZE] __attribute__((section("._itcram"))); // 68K RAM  
-unsigned char ZRAM[MAX_Z80_RAM_SIZE] __attribute__((section("._dtcram"))); // Z80 RAM
+unsigned char *M68K_RAM; // 64K RAM  
+unsigned char ZRAM[MAX_Z80_RAM_SIZE]; // Z80 RAM
 unsigned char TMSS[0x4];
 extern unsigned short gwenesis_vdp_status;
 
@@ -95,7 +95,7 @@ void load_cartridge()
     memset(ZRAM, 0, MAX_Z80_RAM_SIZE);
 
     // Set Z80 Memory as Z80_RAM
-    z80_set_memory(ZRAM);
+    z80_set_memory((unsigned int *)ZRAM);
 
     z80_pulse_reset();
 
@@ -113,6 +113,8 @@ void load_cartridge()
  *
  ******************************************************************************/
 void power_on() {
+  M68K_RAM = itc_malloc(MAX_RAM_SIZE);
+
   // Set M68K CPU as original MOTOROLA 68000
   m68k_set_cpu_type(M68K_CPU_TYPE_68000);
   // Initialize M68K CPU

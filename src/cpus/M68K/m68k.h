@@ -53,7 +53,7 @@ extern "C" {
 	extern const unsigned char* ROM_DATA;
 #endif
 
-extern unsigned char M68K_RAM[];
+extern unsigned char *M68K_RAM;
 //extern unsigned char* M68K_RAM;
 
 //#include "main.h"
