@@ -22,6 +22,7 @@ __license__ = "GPLv3"
 #include "z80inst.h"
 #include "m68kcpu.h"
 #include "gwenesis_bus.h"
+#include "gwenesis_savestate.h"
 #include "ym2612.h"
 
 #pragma GCC optimize("Ofast")
@@ -166,7 +167,7 @@ void z80_sync(void) {
 
 void z80_set_memory(unsigned int *buffer)
 {
-    Z80_RAM = buffer;
+    Z80_RAM = (unsigned char *)buffer;
     initialized = 1;
 }
 
@@ -551,3 +552,29 @@ byte InZ80(register word Port) {return 0;}
 void OutZ80(register word Port, register byte Value) {;}
 void PatchZ80(register Z80 *R) {;}
 void DebugZ80(register Z80 *R) {;}
+
+
+unsigned char *Z80_RAM;
+
+void gwenesis_z80inst_save_state() {
+    SaveState* state;
+    state = saveGwenesisStateOpenForWrite("z80inst");
+    saveGwenesisStateSetBuffer(state, "cpu", &cpu, sizeof(Z80));
+    saveGwenesisStateSet(state, "bus_ack", bus_ack);
+    saveGwenesisStateSet(state, "reset", reset);
+    saveGwenesisStateSet(state, "reset_once", reset_once);
+    saveGwenesisStateSetBuffer(state, "zclk", &zclk, sizeof(uint64_t));
+    saveGwenesisStateSet(state, "initialized", initialized);
+    saveGwenesisStateSet(state, "Z80_BANK", Z80_BANK);
+}
+
+void gwenesis_z80inst_load_state() {
+    SaveState* state = saveGwenesisStateOpenForRead("z80inst");
+    saveGwenesisStateGetBuffer(state, "cpu", &cpu, sizeof(Z80));
+    bus_ack = saveGwenesisStateGet(state, "bus_ack",0);
+    reset = saveGwenesisStateGet(state, "reset",0);
+    reset_once = saveGwenesisStateGet(state, "reset_once",0);
+    saveGwenesisStateGetBuffer(state, "zclk", &zclk, sizeof(uint64_t));
+    initialized = saveGwenesisStateGet(state, "initialized",0);
+    Z80_BANK = saveGwenesisStateGet(state, "Z80_BANK",0);
+}
