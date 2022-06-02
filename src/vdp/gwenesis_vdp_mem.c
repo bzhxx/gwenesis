@@ -1178,21 +1178,21 @@ void gwenesis_vdp_mem_save_state() {
 }
 
 void gwenesis_vdp_mem_load_state() {
-    SaveState* state = saveGwenesisStateOpenForRead("vdp_mem");
-    saveGwenesisStateGetBuffer(state, "emulator_framebuffer", emulator_framebuffer, sizeof(emulator_framebuffer));
-    saveGwenesisStateGetBuffer(state, "CRAM", CRAM, sizeof(CRAM));
-    saveGwenesisStateGetBuffer(state, "SAT_CACHE", SAT_CACHE, sizeof(SAT_CACHE));
-    saveGwenesisStateGetBuffer(state, "gwenesis_vdp_regs", gwenesis_vdp_regs, sizeof(gwenesis_vdp_regs));
-    saveGwenesisStateGetBuffer(state, "fifo", fifo, sizeof(fifo));
-    saveGwenesisStateGetBuffer(state, "CRAM565", CRAM565, sizeof(CRAM565));
-    saveGwenesisStateGetBuffer(state, "VSRAM", VSRAM, sizeof(VSRAM));
-    code_reg = saveGwenesisStateGet(state, "code_reg",0);
-    address_reg = saveGwenesisStateGet(state, "address_reg",0);
-    command_word_pending = saveGwenesisStateGet(state, "command_word_pending",0);
-    gwenesis_vdp_status = saveGwenesisStateGet(state, "gwenesis_vdp_status",0);
-    scan_line = saveGwenesisStateGet(state, "scan_line",0);
-    dma_fill_pending = saveGwenesisStateGet(state, "dma_fill_pending",0);
-    hvcounter_latch = saveGwenesisStateGet(state, "hvcounter_latch",0);
-    hvcounter_latched = saveGwenesisStateGet(state, "hvcounter_latched",0);
-    hint_pending = saveGwenesisStateGet(state, "hint_pending",0);
+  SaveState* state = saveGwenesisStateOpenForRead("vdp_mem");
+  saveGwenesisStateGetBuffer(state, "emulator_framebuffer", emulator_framebuffer, sizeof(emulator_framebuffer));
+  saveGwenesisStateGetBuffer(state, "CRAM", CRAM, sizeof(CRAM));
+  saveGwenesisStateGetBuffer(state, "SAT_CACHE", SAT_CACHE, sizeof(SAT_CACHE));
+  saveGwenesisStateGetBuffer(state, "gwenesis_vdp_regs", gwenesis_vdp_regs, sizeof(gwenesis_vdp_regs));
+  saveGwenesisStateGetBuffer(state, "fifo", fifo, sizeof(fifo));
+  saveGwenesisStateGetBuffer(state, "CRAM565", CRAM565, sizeof(CRAM565));
+  saveGwenesisStateGetBuffer(state, "VSRAM", VSRAM, sizeof(VSRAM));
+  code_reg = saveGwenesisStateGet(state, "code_reg");
+  address_reg = saveGwenesisStateGet(state, "address_reg");
+  command_word_pending = saveGwenesisStateGet(state, "command_word_pending");
+  gwenesis_vdp_status = saveGwenesisStateGet(state, "gwenesis_vdp_status");
+  scan_line = saveGwenesisStateGet(state, "scan_line");
+  dma_fill_pending = saveGwenesisStateGet(state, "dma_fill_pending");
+  hvcounter_latch = saveGwenesisStateGet(state, "hvcounter_latch");
+  hvcounter_latched = saveGwenesisStateGet(state, "hvcounter_latched");
+  hint_pending = saveGwenesisStateGet(state, "hint_pending");
 }

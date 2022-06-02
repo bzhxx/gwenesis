@@ -34,7 +34,7 @@ int loadGwenesisState(unsigned char *srcBuffer);
 SaveState* saveGwenesisStateOpenForRead(const char* fileName);
 SaveState* saveGwenesisStateOpenForWrite(const char* fileName);
 
-int saveGwenesisStateGet(SaveState* state, const char* tagName, int defValue);
+int saveGwenesisStateGet(SaveState* state, const char* tagName);
 void saveGwenesisStateSet(SaveState* state, const char* tagName, int value);
 
 void saveGwenesisStateGetBuffer(SaveState* state, const char* tagName, void* buffer, int length);

@@ -571,10 +571,10 @@ void gwenesis_z80inst_save_state() {
 void gwenesis_z80inst_load_state() {
     SaveState* state = saveGwenesisStateOpenForRead("z80inst");
     saveGwenesisStateGetBuffer(state, "cpu", &cpu, sizeof(Z80));
-    bus_ack = saveGwenesisStateGet(state, "bus_ack",0);
-    reset = saveGwenesisStateGet(state, "reset",0);
-    reset_once = saveGwenesisStateGet(state, "reset_once",0);
+    bus_ack = saveGwenesisStateGet(state, "bus_ack");
+    reset = saveGwenesisStateGet(state, "reset");
+    reset_once = saveGwenesisStateGet(state, "reset_once");
     saveGwenesisStateGetBuffer(state, "zclk", &zclk, sizeof(uint64_t));
-    initialized = saveGwenesisStateGet(state, "initialized",0);
-    Z80_BANK = saveGwenesisStateGet(state, "Z80_BANK",0);
+    initialized = saveGwenesisStateGet(state, "initialized");
+    Z80_BANK = saveGwenesisStateGet(state, "Z80_BANK");
 }

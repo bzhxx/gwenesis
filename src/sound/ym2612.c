@@ -2328,11 +2328,11 @@ void gwenesis_ym2612_load_state() {
   SaveState* state = saveGwenesisStateOpenForRead("ym2612");
   saveGwenesisStateGetBuffer(state, "lfo_pm_table", lfo_pm_table, sizeof(lfo_pm_table));
   saveGwenesisStateGetBuffer(state, "ym2612", &ym2612, sizeof(ym2612));
-  m2 = saveGwenesisStateGet(state, "m2",0);
-  c1 = saveGwenesisStateGet(state, "c1",0);
-  c2 = saveGwenesisStateGet(state, "c2",0);
-  mem = saveGwenesisStateGet(state, "mem",0);
+  m2 = saveGwenesisStateGet(state, "m2");
+  c1 = saveGwenesisStateGet(state, "c1");
+  c2 = saveGwenesisStateGet(state, "c2");
+  mem = saveGwenesisStateGet(state, "mem");
   saveGwenesisStateGetBuffer(state, "out_fm", out_fm, sizeof(out_fm));
-  bitmask = saveGwenesisStateGet(state, "bitmask",0);
+  bitmask = saveGwenesisStateGet(state, "bitmask");
   saveGwenesisStateGetBuffer(state, "OPNREGS", OPNREGS, sizeof(OPNREGS));
 }

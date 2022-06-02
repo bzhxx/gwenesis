@@ -643,6 +643,6 @@ void gwenesis_bus_load_state() {
     saveGwenesisStateGetBuffer(state, "M68K_RAM", M68K_RAM, MAX_RAM_SIZE);
     saveGwenesisStateGetBuffer(state, "ZRAM", ZRAM, MAX_Z80_RAM_SIZE);
     saveGwenesisStateGetBuffer(state, "TMSS", TMSS, sizeof(TMSS));
-    tmss_state = saveGwenesisStateGet(state, "tmss_state",0);
-    tmss_count = saveGwenesisStateGet(state, "tmss_count",0);
+    tmss_state = saveGwenesisStateGet(state, "tmss_state");
+    tmss_count = saveGwenesisStateGet(state, "tmss_count");
 }
