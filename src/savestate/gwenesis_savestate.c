@@ -39,7 +39,7 @@ void gwenesis_save_state() {
   gwenesis_bus_save_state();
   gwenesis_vdp_gfx_save_state();
   gwenesis_vdp_mem_save_state();
-//  gwenesis_z80inst_save_state();
+  gwenesis_z80inst_save_state();
   gwenesis_ym2612_save_state();
 }
 
@@ -49,6 +49,6 @@ void gwenesis_load_state() {
   gwenesis_bus_load_state();
   gwenesis_vdp_gfx_load_state();
   gwenesis_vdp_mem_load_state();
-//  gwenesis_z80inst_load_state();
+  gwenesis_z80inst_load_state();
   gwenesis_ym2612_load_state();
 }

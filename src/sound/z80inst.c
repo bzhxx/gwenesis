@@ -554,8 +554,6 @@ void PatchZ80(register Z80 *R) {;}
 void DebugZ80(register Z80 *R) {;}
 
 
-unsigned char *Z80_RAM;
-
 void gwenesis_z80inst_save_state() {
     SaveState* state;
     state = saveGwenesisStateOpenForWrite("z80inst");
