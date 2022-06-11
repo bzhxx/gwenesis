@@ -1159,7 +1159,7 @@ void gwenesis_vdp_write_memory_16(unsigned int address, unsigned int value) {
 void gwenesis_vdp_mem_save_state() {
   SaveState* state;
   state = saveGwenesisStateOpenForWrite("vdp_mem");
-  saveGwenesisStateSetBuffer(state, "emulator_framebuffer", emulator_framebuffer, sizeof(emulator_framebuffer));
+  saveGwenesisStateSetBuffer(state, "VRAM", VRAM, VRAM_MAX_SIZE);
   saveGwenesisStateSetBuffer(state, "CRAM", CRAM, sizeof(CRAM));
   saveGwenesisStateSetBuffer(state, "SAT_CACHE", SAT_CACHE, sizeof(SAT_CACHE));
   saveGwenesisStateSetBuffer(state, "gwenesis_vdp_regs", gwenesis_vdp_regs, sizeof(gwenesis_vdp_regs));
@@ -1179,7 +1179,7 @@ void gwenesis_vdp_mem_save_state() {
 
 void gwenesis_vdp_mem_load_state() {
   SaveState* state = saveGwenesisStateOpenForRead("vdp_mem");
-  saveGwenesisStateGetBuffer(state, "emulator_framebuffer", emulator_framebuffer, sizeof(emulator_framebuffer));
+  saveGwenesisStateGetBuffer(state, "VRAM", VRAM, VRAM_MAX_SIZE);
   saveGwenesisStateGetBuffer(state, "CRAM", CRAM, sizeof(CRAM));
   saveGwenesisStateGetBuffer(state, "SAT_CACHE", SAT_CACHE, sizeof(SAT_CACHE));
   saveGwenesisStateGetBuffer(state, "gwenesis_vdp_regs", gwenesis_vdp_regs, sizeof(gwenesis_vdp_regs));
