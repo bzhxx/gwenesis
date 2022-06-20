@@ -2313,7 +2313,6 @@ int YM2612SaveContext(unsigned char *state)
 void gwenesis_ym2612_save_state() {
   SaveState* state;
   state = saveGwenesisStateOpenForWrite("ym2612");
-  saveGwenesisStateSetBuffer(state, "lfo_pm_table", lfo_pm_table, sizeof(lfo_pm_table));
   saveGwenesisStateSetBuffer(state, "ym2612", &ym2612, sizeof(ym2612));
   saveGwenesisStateSet(state, "m2", m2);
   saveGwenesisStateSet(state, "c1", c1);
@@ -2326,7 +2325,6 @@ void gwenesis_ym2612_save_state() {
 
 void gwenesis_ym2612_load_state() {
   SaveState* state = saveGwenesisStateOpenForRead("ym2612");
-  saveGwenesisStateGetBuffer(state, "lfo_pm_table", lfo_pm_table, sizeof(lfo_pm_table));
   saveGwenesisStateGetBuffer(state, "ym2612", &ym2612, sizeof(ym2612));
   m2 = saveGwenesisStateGet(state, "m2");
   c1 = saveGwenesisStateGet(state, "c1");
