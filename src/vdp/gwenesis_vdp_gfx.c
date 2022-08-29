@@ -27,26 +27,29 @@ __license__ = "GPLv3"
 
 //#include <assert.h>
 
-#pragma GCC optimize("Ofast")
+#if GNW_TARGET_MARIO !=0 || GNW_TARGET_ZELDA!=0
+  #pragma GCC optimize("Ofast")
+#endif
 
+#if GNW_TARGET_MARIO != 0 | GNW_TARGET_ZELDA != 0
 
-#if _HOST_
-typedef unsigned char uint8_t;
-typedef unsigned short uint16_t;
-typedef unsigned int uint32_t;
-extern unsigned char VRAM[];
-#else
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
 #include "stm32h7b0xx.h"
 extern unsigned char* VRAM;
+
+#else
+
+typedef unsigned char uint8_t;
+typedef unsigned short uint16_t;
+typedef unsigned int uint32_t;
+extern unsigned char VRAM[];
+
 #endif
 
 extern unsigned short CRAM[];            // CRAM - Palettes
 extern unsigned char SAT_CACHE[]__attribute__((aligned(4)));        // Sprite cache
 extern unsigned char gwenesis_vdp_regs[]; // Registers
-
-//extern unsigned frame_count;
 
 extern unsigned short CRAM565[];    // CRAM - Palettes
 
@@ -65,17 +68,18 @@ static unsigned short *screen_buffer=0;
 
 enum { PIX_OVERFLOW = 32 };
 
-static uint8_t render_buffer[SCREEN_WIDTH + PIX_OVERFLOW*2]; //__attribute__((section("._dtcram")));// __attribute__((aligned(4)));
-static uint8_t sprite_buffer[SCREEN_WIDTH + PIX_OVERFLOW*2]; //_attribute__((section("._dtcram")));//  __attribute__((aligned(4)));
-
+static uint8_t render_buffer[SCREEN_WIDTH + PIX_OVERFLOW*2];
+static uint8_t sprite_buffer[SCREEN_WIDTH + PIX_OVERFLOW*2];
 
 // Define VIDEO MODE
-uint8_t mode_h40;
-uint8_t mode_pal;
+static int mode_h40;
+int mode_pal;
 
 // Define screen W/H
 int screen_width;
 int screen_height;
+
+int gwenesis_H32upscaler;
 
 int sprite_overflow;
 bool sprite_collision;
@@ -91,7 +95,26 @@ static int Window_lastcol;
 // 16 bits access to VRAM
 #define FETCH16VRAM(A)  ( (VRAM[(A)+1]) | (VRAM[(A)] << 8) )
 
+#define VDP_GFX_DISABLE_LOGGING 1
 
+#if !VDP_GFX_DISABLE_LOGGING
+#include <stdarg.h>
+void vdpg_log(const char *subs, const char *fmt, ...) {
+  extern int frame_counter;
+  extern int scan_line;
+
+  va_list va;
+
+  printf("%06d:%03d :[%s] vc:%03x hc:%03x", frame_counter, scan_line, subs,gwenesis_vdp_vcounter(),gwenesis_vdp_hcounter());
+
+  va_start(va, fmt);
+  vfprintf(stdout, fmt, va);
+  va_end(va);
+  printf("\n");
+}
+#else
+	#define vdpg_log(...)  do {} while(0)
+#endif
 /******************************************************************************
  *
  *  set screen buffers in which the rendering occurs
@@ -223,13 +246,13 @@ void draw_pattern_fliph_sprite_over_planes(uint8_t *scr, uint32_t p, uint8_t att
   else {
 
   /*  not transparent pixel to write AND not already a sprite or higher priority*/
-  if (((PIX1(p))) && ((scr[6] & PIXATTR_SPRITE_HIPRI) == 0)) scr[6] = attrs | (PIX1(p));
   if (((PIX7(p))) && ((scr[0] & PIXATTR_SPRITE_HIPRI) == 0)) scr[0] = attrs | (PIX7(p));
   if (((PIX6(p))) && ((scr[1] & PIXATTR_SPRITE_HIPRI) == 0)) scr[1] = attrs | (PIX6(p));
   if (((PIX5(p))) && ((scr[2] & PIXATTR_SPRITE_HIPRI) == 0)) scr[2] = attrs | (PIX5(p));
   if (((PIX4(p))) && ((scr[3] & PIXATTR_SPRITE_HIPRI) == 0)) scr[3] = attrs | (PIX4(p));
   if (((PIX3(p))) && ((scr[4] & PIXATTR_SPRITE_HIPRI) == 0)) scr[4] = attrs | (PIX3(p));
   if (((PIX2(p))) && ((scr[5] & PIXATTR_SPRITE_HIPRI) == 0)) scr[5] = attrs | (PIX2(p));
+  if (((PIX1(p))) && ((scr[6] & PIXATTR_SPRITE_HIPRI) == 0)) scr[6] = attrs | (PIX1(p));
   if (((PIX0(p))) && ((scr[7] & PIXATTR_SPRITE_HIPRI) == 0)) scr[7] = attrs | (PIX0(p));
   
   }
@@ -961,10 +984,37 @@ void gwenesis_vdp_render_config()
  *
  ******************************************************************************/
 
+//#define CONV(b)   ((0b11 1110 0000 0000 0000 0000 0000 & b)>>10) | ((0b00000 1111 1100 0000 0000 & b)>>5) | ((0b0000000000011111 & b))
+//#define SPACE(c)  ((0b00 0000 0000 1111 1000 0000 0000 & c)<<10) | ((0b00000 0000 0111 1110 0000 & c)<<5) | ((0b0000000000011111 & c))
+
+#define CONV(b)   ((0x3e00000 & b)>>10) | ((0xfc00 & b)>>5) | ((0x1f & b))
+#define SPACE(c)  ((0xe800 & c)<<10) | ((0x7e0 & c)<<5) | ((0x1f & c))
+
+__attribute__((optimize("unroll-loops"))) static void
+blit_4to5_line(uint16_t *in, uint16_t *out) {
+
+  uint16_t *src_row = in;
+  uint16_t *dest_row = out;
+  for (int x_src = 0, x_dst = 0; x_src < 256; x_src += 4, x_dst += 5) {
+    uint32_t b0 = SPACE(src_row[x_src]);
+    uint32_t b1 = SPACE(src_row[x_src + 1]);
+    uint32_t b2 = SPACE(src_row[x_src + 2]);
+    uint32_t b3 = SPACE(src_row[x_src + 3]);
+
+    dest_row[x_dst] = CONV(b0);
+    dest_row[x_dst + 1] = CONV((b0 + b0 + b0 + b1) >> 2);
+    dest_row[x_dst + 2] = CONV((b1 + b2) >> 1);
+    dest_row[x_dst + 3] = CONV((b2 + b2 + b2 + b3) >> 2);
+    dest_row[x_dst + 4] = CONV(b3);
+  }
+}
+
 void gwenesis_vdp_render_line(int line)
 {
   mode_h40 = REG12_MODE_H40;
-  mode_pal = REG1_PAL;
+  //mode_pal = REG1_PAL;
+
+  vdpg_log(__FUNCTION__,": %3d",line);
 
   //unsigned int line = scan_line;
   //  if (line == 0) gwenesis_vdp_render_config();
@@ -973,27 +1023,50 @@ void gwenesis_vdp_render_line(int line)
   if (BITS(gwenesis_vdp_regs[12], 1, 2) != 0)
     return;
 
-  if (line >= (mode_pal ? 240 : 224))
+  if (line >= (REG1_PAL ? 240 : 224))
     return;
 
-#ifdef _HOST_
-  memset(screen, 0, SCREEN_WIDTH * 4);
 
-// Embedded RGB565
-#else
-  screen_buffer_line = &screen_buffer[line * 320];
-  /* clean up line screen not refreshed when mode is !H40 */
-  if (REG12_MODE_H40 == 0) memset(screen_buffer_line - (320-256)/2, 0, 320*2);
+#if GNW_TARGET_MARIO != 0 | GNW_TARGET_ZELDA != 0
+  
+  screen_buffer_line = &screen_buffer[line * SCREEN_WIDTH];
 
-#endif
+  // Disable display >> black screen
+  if (REG0_DISABLE_DISPLAY){
+    memset(screen_buffer_line, 0, SCREEN_WIDTH*2);
+    return;
+  }
 
-  if (REG0_DISABLE_DISPLAY)
-  return;
+  // Display is not enabled. fill with background colour
+  if (REG1_DISP_ENABLED == 0) {
+    for (int px=0; px < 320;px++) 
+      screen_buffer_line[px]=CRAM565[0];
+    return;
+  }
+  #else
 
-#ifdef _HOST_
-    memset(screen, 0, SCREEN_WIDTH * 4);
-#else
- //   memset(screen_buffer_line, 0, 320 * 2);
+  // Disable display >> black screen
+  if (REG0_DISABLE_DISPLAY){
+    memset(screen, 0, SCREEN_WIDTH*3);
+    return;
+  }
+
+  // Dsiaply is not enabled. fill with background colour
+  if (REG1_DISP_ENABLED == 0) {
+      uint16_t rgb565 = CRAM565[0];
+      uint8_t r, g, b;
+      r = (rgb565 & 0xF800) >> 8;
+      g = (rgb565 & 0X07E0) >> 3;
+      b = (rgb565 & 0x001F) << 3;
+
+    for (int px=0; px < 320;px++) {
+      screen[3*px]=r;
+      screen[3*px+1]=g;
+      screen[3*px+2]=b;
+    }
+    return;
+  }
+
 #endif
 
   uint8_t *pb = &render_buffer[PIX_OVERFLOW];
@@ -1010,8 +1083,102 @@ void gwenesis_vdp_render_line(int line)
   else
     draw_sprites_over_planes(line);
 
-#ifdef _HOST_
+#if GNW_TARGET_MARIO != 0 | GNW_TARGET_ZELDA != 0
+
+  if (screen_width == 320) {
+    /* Mode Highlight/shadow is enabled */
+    if (MODE_SHI) {
+      for (int x = 0; x < screen_width; x++) {
+        uint8_t plane = pb[x];
+        uint8_t sprite = ps[x];
+
+        if ((plane & 0xC0) < (sprite & 0xC0)) {
+          switch (sprite & 0x3F) {
+          // Palette=3, Sprite=14 :> draw plane, force highlight
+          case 0x3E:
+            screen_buffer_line[x] = 0x8410 | CRAM565[plane] >> 1;
+            break;
+          // Palette=3, Sprite=15 :> draw plane, force shadow
+          case 0x3F:
+            screen_buffer_line[x] = CRAM565[plane] >> 1;
+            break;
+          // draw sprite, normal
+          default:
+            screen_buffer_line[x] = CRAM565[sprite];
+            break;
+          }
+        } else {
+          screen_buffer_line[x] = CRAM565[plane];
+        }
+      }
+
+      /* Normal mode*/
+    } else {
+
+      uint32_t *video_out = (uint32_t *)&screen_buffer_line[0];
+
+      for (int x = 0; x < screen_width; x += 2) {
+
+        // screen_buffer_line[x] = CRAM565[pb[x]];
+        //  2 pixels : 32 bits write  access is faster
+        *video_out++ = CRAM565[pb[x]] | CRAM565[pb[x + 1]] << 16;
+      }
+    }
+    /* upscale mode H32 to H40 */
+  } else {
+
+    uint16_t buffer_line_H32[256];
+
+    /* Mode Highlight/shadow is enabled */
+    if (MODE_SHI) {
+      for (int x = 0; x < screen_width; x++) {
+        uint8_t plane = pb[x];
+        uint8_t sprite = ps[x];
+
+        if ((plane & 0xC0) < (sprite & 0xC0)) {
+          switch (sprite & 0x3F) {
+          // Palette=3, Sprite=14 :> draw plane, force highlight
+          case 0x3E:
+            buffer_line_H32[x] = 0x8410 | CRAM565[plane] >> 1;
+            break;
+          // Palette=3, Sprite=15 :> draw plane, force shadow
+          case 0x3F:
+            buffer_line_H32[x] = CRAM565[plane] >> 1;
+            break;
+          // draw sprite, normal
+          default:
+            buffer_line_H32[x] = CRAM565[sprite];
+            break;
+          }
+        } else {
+          buffer_line_H32[x] = CRAM565[plane];
+        }
+      }
+
+      /* Normal mode*/
+    } else {
+
+      for (int x = 0; x < screen_width; x++)
+        buffer_line_H32[x] = CRAM565[pb[x]];
+    }
+
+    uint16_t scaled_buffer_line[320];
+    
+    blit_4to5_line(buffer_line_H32, scaled_buffer_line);
+
+    uint32_t *video_out = (uint32_t *)&screen_buffer_line[0];
+
+    for (int x = 0; x < 320; x += 2) {
+
+      // screen_buffer_line[x] = CRAM565[pb[x]];
+      //  2 pixels : 32 bits write  access is faster
+      *video_out++ = scaled_buffer_line[x] | scaled_buffer_line[x + 1] << 16;
+    }
+  }
+#else
   uint16_t rgb565;
+  uint16_t tmp_line[320];
+  uint16_t scaled_line[320];
 
   /* Mode Highlight/shadow is enabled */
   if (MODE_SHI) {
@@ -1037,6 +1204,8 @@ void gwenesis_vdp_render_line(int line)
       } else {
         rgb565 = CRAM565[plane];
       }
+      tmp_line[x]=rgb565;
+      /*
       uint8_t r, g, b;
       r = (rgb565 & 0xF800) >> 8;
       g = (rgb565 & 0X07E0) >> 3;
@@ -1046,69 +1215,67 @@ void gwenesis_vdp_render_line(int line)
       screen[pixel * 4 + 2] = r;
       screen[pixel * 4 + 1] = g;
       screen[pixel * 4 + 0] = b;
+      */
     }
 
     /* Normal mode*/
   } else {
     for (int x = 0; x < screen_width; x++) {
+      tmp_line[x]=CRAM565[pb[x]];
+
+      /*
       rgb565 = CRAM565[pb[x]];
       uint8_t r, g, b;
       r = (rgb565 & 0xF800) >> 8;
       g = (rgb565 & 0X07E0) >> 3;
       b = (rgb565 & 0x001F) << 3;
+
       int pixel = ((240 - screen_height) / 2 + (line)) * 320 + (x) +
                   (320 - screen_width) / 2;
       screen[pixel * 4 + 2] = r;
       screen[pixel * 4 + 1] = g;
       screen[pixel * 4 + 0] = b;
+      */
     }
   }
+  // Mode H32  horizontal upscale 256 >>> 320
+  if ( screen_width == 256) {
 
-  #else
+  blit_4to5_line(tmp_line,scaled_line);
 
-  /* Mode Highlight/shadow is enabled */
-  if (MODE_SHI) {
-    for (int x = 0; x < screen_width; x++) {
-      uint8_t plane = pb[x];
-      uint8_t sprite = ps[x];
-
-      if ((plane & 0xC0) < (sprite & 0xC0)) {
-        switch (sprite & 0x3F) {
-        // Palette=3, Sprite=14 :> draw plane, force highlight
-        case 0x3E:
-          screen_buffer_line[x] = 0x8410 | CRAM565[plane] >> 1;
-          break;
-        // Palette=3, Sprite=15 :> draw plane, force shadow
-        case 0x3F:
-          screen_buffer_line[x] = CRAM565[plane] >> 1;
-          break;
-        // draw sprite, normal
-        default:
-          screen_buffer_line[x] = CRAM565[sprite];
-          break;
-        }
-      } else {
-        screen_buffer_line[x] = CRAM565[plane];
-      }
-    }
-
-    /* Normal mode*/
+  // RGB565 to RGB24
+  for (int x = 0; x < 320; x++) {
+    uint8_t r, g, b;
+    r = (scaled_line[x] & 0xF800) >> 8;
+    g = (scaled_line[x] & 0X07E0) >> 3;
+    b = (scaled_line[x] & 0x001F) << 3;
+    int pixel = ((240 - screen_height) / 2 + (line)) * 320 + (x); // + (320 - screen_width) / 2;
+    screen[pixel * 4 + 2] = r;
+    screen[pixel * 4 + 1] = g;
+    screen[pixel * 4 + 0] = b;
+  }
+  // Mode H40
   } else {
 
-    uint32_t *video_out = (uint32_t *) &screen_buffer_line[0];
-
-    for (int x = 0; x < screen_width; x+=2) {
-
-      //screen_buffer_line[x] = CRAM565[pb[x]];
-      // 2 pixels : 32 bits write  access is faster 
-      *video_out++ = CRAM565[pb[x]] | CRAM565[pb[x+1]] << 16;
-    }
+  // RGB565 to RGB24
+  for (int x = 0; x < 320; x++) {
+    uint8_t r, g, b;
+    r = (tmp_line[x] & 0xF800) >> 8;
+    g = (tmp_line[x] & 0X07E0) >> 3;
+    b = (tmp_line[x] & 0x001F) << 3;
+    int pixel = ((240 - screen_height) / 2 + (line)) * 320 + (x);// + (320 - screen_width) / 2;
+    screen[pixel * 4 + 2] = r;
+    screen[pixel * 4 + 1] = g;
+    screen[pixel * 4 + 0] = b;
+  }
   }
 
-  #endif
+
+#endif
 }
 
 void gwenesis_vdp_gfx_save_state() {
+  /*
   SaveState* state;
   state = saveGwenesisStateOpenForWrite("vdp_gfx");
   saveGwenesisStateSetBuffer(state, "render_buffer", render_buffer, sizeof(render_buffer));
@@ -1124,9 +1291,11 @@ void gwenesis_vdp_gfx_save_state() {
   saveGwenesisStateSet(state, "PlanA_lastcol", PlanA_lastcol);
   saveGwenesisStateSet(state, "Window_firstcol", Window_firstcol);
   saveGwenesisStateSet(state, "Window_lastcol", Window_lastcol);
+  */
 }
 
 void gwenesis_vdp_gfx_load_state() {
+  /*
     SaveState* state = saveGwenesisStateOpenForRead("vdp_gfx");
     saveGwenesisStateGetBuffer(state, "render_buffer", render_buffer, sizeof(render_buffer));
     saveGwenesisStateGetBuffer(state, "sprite_buffer", sprite_buffer, sizeof(sprite_buffer));
@@ -1141,4 +1310,5 @@ void gwenesis_vdp_gfx_load_state() {
     PlanA_lastcol = saveGwenesisStateGet(state, "PlanA_lastcol");
     Window_firstcol = saveGwenesisStateGet(state, "Window_firstcol");
     Window_lastcol = saveGwenesisStateGet(state, "Window_lastcol");
+    */
 }
